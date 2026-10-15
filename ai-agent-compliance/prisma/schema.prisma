@@ -1,0 +1,52 @@
+// prisma/schema.prisma
+// Prisma schema for AI Agent Compliance platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id     String     @db.Uuid
+  name         String
+  description  String?
+  model        String?    @default("gpt-4o")
+  status       String     @default("active")
+  system_prompt String?
+  risk_level   String     @default("Low")
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  audit_logs   AuditLog[]
+
+  @@index([owner_id], map: "idx_agents_owner_id")
+  @@map("agents")
+}
+
+model AuditLog {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id                 String?  @db.Uuid
+  owner_id                 String   @db.Uuid
+  action                   String
+  risk_score               String
+  prompt                   String?
+  response                 String?
+  flagged_pii              Boolean  @default(false)
+  flagged_prompt_injection Boolean  @default(false)
+  flagged_rogue_tool       Boolean  @default(false)
+  metadata                 Json     @default("{}")
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+
+  agent                    Agent?   @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([owner_id], map: "idx_audit_logs_owner_id")
+  @@index([agent_id], map: "idx_audit_logs_agent_id")
+  @@index([risk_score], map: "idx_audit_logs_risk_score")
+  @@index([created_at(sort: Desc)], map: "idx_audit_logs_created_at")
+  @@map("audit_logs")
+}
